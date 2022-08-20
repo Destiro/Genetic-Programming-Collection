@@ -10,10 +10,13 @@ from deap import base
 from deap import creator
 from deap import tools
 
-IND_INIT_SIZE = 5
-MAX_ITEM = 50
+NGEN = 150
+ELITISM_POP = 30
+CHILDREN = 100
+CXPB = 0.65
+MUTPB = 0.35
 
-
+""" Populate GA with Data """
 def read_data(file_name):
     data = []
     index = 0
@@ -29,33 +32,36 @@ def read_data(file_name):
     return data, cap
 
 
-items, capacity = read_data("../data/knapsack-data/10_269")
+items, capacity = read_data("../data/knapsack-data/100_995")
 
+""" Fitness / Evaluation """
+def fitnessFunction(individual):
+    if len(individual) == 0:
+        return 0, 0
 
-def evalKnapsack(individual):
+    penalty = 0.7
     weight = 0.0
     value = 0.0
+
     for item in individual:
         weight += items[item].getCapacity()
         value += items[item].getValue()
-    if len(individual) > MAX_ITEM or weight > capacity:
-        return 10000, 0             # Ensure overweighted bags are dominated
-    return weight, value
 
+    if weight > capacity:
+        return 0, weight  # If overweight, make it really unlikely to reproduce
 
-def cxSet(ind1, ind2):
-    """Apply a crossover operation on input sets. The first child is the
-    intersection of the two sets, the second child is the difference of the
-    two sets.
-    """
+    # Fitness formula from lectures
+    return value-(penalty*max(0, int(weight-float(capacity)))), weight
+
+""" Crossover """
+def setCrossover(ind1, ind2):
     temp = set(ind1)                # Used in order to keep type
     ind1 &= ind2                    # Intersection (inplace)
     ind2 ^= temp                    # Symmetric Difference (inplace)
     return ind1, ind2
 
-
-def mutSet(individual):
-    """Mutation that pops or add an element."""
+""" Mutation """
+def setMutation(individual):
     if random.random() < 0.5:
         if len(individual) > 0:     # We cannot pop from an empty set
             individual.remove(random.choice(sorted(tuple(individual))))
@@ -65,7 +71,7 @@ def mutSet(individual):
 
 
 def setupToolbox():
-    creator.create("Fitness", base.Fitness, weights=(-1.0, 1.0))
+    creator.create("Fitness", base.Fitness, weights=(1.0, -1.0))
     creator.create("Individual", set, fitness=creator.Fitness)
 
     toolbox = base.Toolbox()
@@ -74,37 +80,29 @@ def setupToolbox():
     toolbox.register("attr_item", random.randrange, len(items))
 
     # Structure initializers
-    toolbox.register("individual", tools.initRepeat, creator.Individual,
-                     toolbox.attr_item, IND_INIT_SIZE)
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_item, len(items))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    toolbox.register("evaluate", evalKnapsack)
-    toolbox.register("mate", cxSet)
-    toolbox.register("mutate", mutSet)
+    toolbox.register("evaluate", fitnessFunction)
+    toolbox.register("mate", setCrossover)
+    toolbox.register("mutate", setMutation)
     toolbox.register("select", tools.selNSGA2)
     return toolbox
 
 def main():
-    random.seed(64)
-    NGEN = 50
-    MU = 50
-    LAMBDA = 100
-    CXPB = 0.7
-    MUTPB = 0.2
-
     toolbox = setupToolbox()
-
-    pop = toolbox.population(n=MU)
+    pop = toolbox.population(n=ELITISM_POP)
     hof = tools.ParetoFront()
+
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", numpy.mean, axis=0)
     stats.register("std", numpy.std, axis=0)
     stats.register("min", numpy.min, axis=0)
     stats.register("max", numpy.max, axis=0)
 
-    algorithms.eaMuPlusLambda(pop, toolbox, MU, LAMBDA, CXPB, MUTPB, NGEN, stats,
-                              halloffame=hof)
+    algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof)
 
     return pop, stats, hof
 
 if __name__ == "__main__":
-    main()
+    pop, stats, hof = main()
+    print(hof)
