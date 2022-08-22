@@ -3,6 +3,7 @@
 
 import random
 import numpy
+import matplotlib.pyplot as plt
 
 from KnapItem import KnapItem
 from deap import algorithms
@@ -10,11 +11,13 @@ from deap import base
 from deap import creator
 from deap import tools
 
+# GA Variables
 NGEN = 150
 ELITISM_POP = 30
 CHILDREN = 100
 CXPB = 0.65
 MUTPB = 0.35
+
 
 """ Populate GA with Data """
 def read_data(file_name):
@@ -33,6 +36,7 @@ def read_data(file_name):
 
 
 items, capacity = read_data("../data/knapsack-data/100_995")
+
 
 """ Fitness / Evaluation """
 def fitnessFunction(individual):
@@ -53,12 +57,14 @@ def fitnessFunction(individual):
     # Fitness formula from lectures
     return value-(penalty*max(0, int(weight-float(capacity)))), weight
 
+
 """ Crossover """
 def setCrossover(ind1, ind2):
     temp = set(ind1)                # Used in order to keep type
     ind1 &= ind2                    # Intersection (inplace)
     ind2 ^= temp                    # Symmetric Difference (inplace)
     return ind1, ind2
+
 
 """ Mutation """
 def setMutation(individual):
@@ -88,6 +94,26 @@ def setupToolbox():
     toolbox.register("select", tools.selNSGA2)
     return toolbox
 
+
+def plotConvergence(data):
+    averages = []
+
+
+    # Average the data
+    for j in range(len(data[0])):
+        point = 0
+        for i in range(len(data)):
+            point += data[i][j]
+        averages.append(point/5)
+
+
+    plt.plot(averages)
+    plt.xlabel('Generation')
+    plt.ylabel('Average Value of Knapsack')
+    plt.title('Convergence for 23_10000')
+    plt.show()
+
+
 def main():
     toolbox = setupToolbox()
     pop = toolbox.population(n=ELITISM_POP)
@@ -99,10 +125,19 @@ def main():
     stats.register("min", numpy.min, axis=0)
     stats.register("max", numpy.max, axis=0)
 
-    algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof)
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof)
 
-    return pop, stats, hof
+    best = []
+    for record in log:
+        best.append(record["max"][0])
+
+    return pop, stats, hof, best
 
 if __name__ == "__main__":
-    pop, stats, hof = main()
-    print(hof)
+    runs = []
+
+    for i in range(5):
+        random.seed(i)
+        pop, stats, hof, best = main()
+        runs.append(best)
+    plotConvergence(runs)
