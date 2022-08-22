@@ -98,19 +98,17 @@ def setupToolbox():
 def plotConvergence(data):
     averages = []
 
-
     # Average the data
     for j in range(len(data[0])):
         point = 0
         for i in range(len(data)):
             point += data[i][j]
-        averages.append(point/5)
-
+        averages.append(1514-(point/5))
 
     plt.plot(averages)
     plt.xlabel('Generation')
-    plt.ylabel('Average Value of Knapsack')
-    plt.title('Convergence for 23_10000')
+    plt.ylabel('Average Value to Optimal (Optimal-Value)')
+    plt.title('Convergence for 100_995 (5 Runs)')
     plt.show()
 
 
