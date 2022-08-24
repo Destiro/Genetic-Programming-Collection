@@ -5,11 +5,11 @@ import random
 import numpy
 import matplotlib.pyplot as plt
 
-from DataItem import DataItem
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
+from sklearn.neighbors import KNeighborsClassifier
 
 # GA Variables
 NGEN = 150
@@ -22,23 +22,65 @@ MUTPB = 0.35
 """ Populate GA with Data """
 def read_data(file_name):
     data = []
-    index = 0
+    classes = []
     with open(file_name) as wt:
-        for line in wt.readlines()[1:]:
-            item = DataItem(index, [(float(i)) for i in line.rstrip().split(',')[:-1]], (int(line.rstrip().split(',')[-1])))
-            data.append(item)
-            index += 1
+        for line in wt.readlines():
+            classes.append(int(line.rstrip().split(',')[-1]))
+            data.append([(float(i)) for i in line.rstrip().split(',')[:-1]])
 
-    return data
+    return normalise_data(data), classes
 
 
-items = read_data("../data/wbcd/wbcd.data")
+def normalise_data(data):
+    # find ranges
+    ranges = []
+    mins = []
+    for i in range(len(data[0])):
+        max = data[0][i]
+        min = data[0][i]
+        for j in range(len(data)):
+            if data[j][i] > max:
+                max = data[j][i]
+            if data[j][i] < min:
+                min = data[j][i]
+        mins.append(min)
+        ranges.append(max-min)
+
+    # Apply normalisation
+    normalised_data = [[((row[i]-mins[i]) / ranges[i]) for i in range(len(ranges))] for row in data]
+
+    return normalised_data
+
+
+def column(data, i):
+    return [row[i] for row in data]
+
+
+items, classifiers = read_data("../data/wbcd/wbcd.data")
+
 
 # TODO FIX
 """ Fitness / Evaluation """
 def fitnessFunction(individual):
     if len(individual) == 0:
         return 0,
+
+    wrapperFilterFunction(individual)
+    return 0,
+
+
+def wrapperFilterFunction(individual):
+    # Creating KNN Model
+    neigh = KNeighborsClassifier(n_neighbors=2)
+    X, y = []
+    for item in items:
+        for feature in individual:
+            X.append(items[feature]) ## make new item with only features then add it
+    y = [i.getClassif() for i in items]
+    neigh.fit(X, y)
+
+    # Testing against the Model
+
 
     return 0,
 
