@@ -4,6 +4,7 @@
 import random
 import numpy
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from deap import algorithms
 from deap import base
@@ -12,7 +13,7 @@ from deap import tools
 from sklearn.neighbors import KNeighborsClassifier
 
 # GA Variables
-NGEN = 150
+NGEN = 100
 ELITISM_POP = 30
 CHILDREN = 100
 CXPB = 0.65
@@ -51,13 +52,12 @@ def normalise_data(data):
 
     return normalised_data
 
-
-def column(data, i):
-    return [row[i] for row in data]
-
-
 items, classifiers = read_data("../data/wbcd/wbcd.data")
+dataF_items = pd.DataFrame(items)
 
+def getIndivByFeatures(individual):
+    list_indiv = [item for item in individual]
+    return [[row[i] for i in range(len(items[0])) if i in list_indiv] for row in items]
 
 # TODO FIX
 """ Fitness / Evaluation """
@@ -65,24 +65,17 @@ def fitnessFunction(individual):
     if len(individual) == 0:
         return 0,
 
-    wrapperFilterFunction(individual)
-    return 0,
+    return wrapperFilterFunction(individual),
 
 
 def wrapperFilterFunction(individual):
     # Creating KNN Model
-    neigh = KNeighborsClassifier(n_neighbors=2)
-    X, y = []
-    for item in items:
-        for feature in individual:
-            X.append(items[feature]) ## make new item with only features then add it
-    y = [i.getClassif() for i in items]
-    neigh.fit(X, y)
+    X = getIndivByFeatures(individual)
+    neigh = KNeighborsClassifier(n_neighbors=5)
+    neigh.fit(X, classifiers)
 
     # Testing against the Model
-
-
-    return 0,
+    return (classifiers == neigh.predict(X)).sum() / len(items)
 
 
 """ Crossover """
@@ -110,10 +103,10 @@ def setupToolbox():
     toolbox = base.Toolbox()
 
     # Attribute generator
-    toolbox.register("attr_item", random.randrange, len(items))
+    toolbox.register("attr_item", random.randrange, len(items[0]))
 
     # Structure initializers
-    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_item, len(items[0].getData()))
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_item, len(items[0]))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("evaluate", fitnessFunction)
     toolbox.register("mate", setCrossover)
@@ -130,12 +123,12 @@ def plotConvergence(data):
         point = 0
         for i in range(len(data)):
             point += data[i][j]
-        averages.append(1514-(point/5))
+        averages.append((point/5))
 
     plt.plot(averages)
     plt.xlabel('Generation')
     plt.ylabel('Average Value to Optimal (Optimal-Value)')
-    plt.title('Convergence for 100_995 (5 Runs)')
+    plt.title('Convergence for Wrapper WBCD (5 Runs)')
     plt.show()
 
 
