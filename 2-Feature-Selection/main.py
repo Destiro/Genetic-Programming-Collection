@@ -5,12 +5,15 @@ import random
 import numpy
 import matplotlib.pyplot as plt
 import pandas as pd
+import time
 
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.feature_selection import mutual_info_classif
 
 # GA Variables
 NGEN = 100
@@ -18,6 +21,8 @@ ELITISM_POP = 30
 CHILDREN = 100
 CXPB = 0.65
 MUTPB = 0.35
+
+type_of_filter = 1
 
 
 """ Populate GA with Data """
@@ -52,20 +57,30 @@ def normalise_data(data):
 
     return normalised_data
 
-items, classifiers = read_data("../data/wbcd/wbcd.data")
+items, classifiers = read_data("../data/sonar/sonar.data")
 dataF_items = pd.DataFrame(items)
+
 
 def getIndivByFeatures(individual):
     list_indiv = [item for item in individual]
     return [[row[i] for i in range(len(items[0])) if i in list_indiv] for row in items]
 
-# TODO FIX
+
+def filterGA(individual):
+    X = getIndivByFeatures(individual)
+    scores = mutual_info_classif(X, classifiers, discrete_features=False)
+    return sum(scores)
+
+
 """ Fitness / Evaluation """
 def fitnessFunction(individual):
     if len(individual) == 0:
         return 0,
 
-    return wrapperFilterFunction(individual),
+    if type_of_filter == 1:
+        return wrapperFilterFunction(individual),
+    else:
+        return filterGA(individual),
 
 
 def wrapperFilterFunction(individual):
@@ -94,6 +109,13 @@ def setMutation(individual):
     else:
         individual.add(random.randrange(len(items)))
     return individual,
+
+
+def runTests(individual):
+    X = getIndivByFeatures(individual)
+    nb = GaussianNB().fit(X, classifiers)
+    predictedModel = nb.predict(X)
+    return (classifiers == predictedModel).sum() / len(X)
 
 
 def setupToolbox():
@@ -127,8 +149,8 @@ def plotConvergence(data):
 
     plt.plot(averages)
     plt.xlabel('Generation')
-    plt.ylabel('Average Value to Optimal (Optimal-Value)')
-    plt.title('Convergence for Wrapper WBCD (5 Runs)')
+    plt.ylabel('Highest Fitness in Population')
+    plt.title('Convergence for Sonar (5 Runs)')
     plt.show()
 
 
@@ -152,10 +174,30 @@ def main():
     return pop, stats, hof, best
 
 if __name__ == "__main__":
+    # Wrapper
     runs = []
-
     for i in range(5):
         random.seed(i)
+        start_time = time.time()
         pop, stats, hof, best = main()
         runs.append(best)
+        print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
+        print("--- %s seconds ---" % (time.time() - start_time))
+        print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
+
     plotConvergence(runs)
+
+    # Filter
+    type_of_filter = 2
+    runs = []
+    for i in range(5):
+        random.seed(i)
+        start_time = time.time()
+        pop, stats, hof, best = main()
+        runs.append(best)
+        print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
+        print("--- %s seconds ---" % (time.time() - start_time))
+        print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
+
+    plotConvergence(runs)
+
