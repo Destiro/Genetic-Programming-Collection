@@ -2,10 +2,9 @@
 ## CREDIT: DEAP Documentation
 
 import random
-import numpy
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import time
 
 from deap import algorithms
 from deap import base
@@ -13,14 +12,14 @@ from deap import creator
 from deap import tools
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.feature_selection import mutual_info_classif
+from deap.benchmarks.tools import hypervolume
 
 # GA Variables
-NGEN = 100
+NGEN = 10
 ELITISM_POP = 30
 CHILDREN = 100
-CXPB = 0.65
-MUTPB = 0.35
+CXPB = 0.7
+MUTPB = 0.25
 
 type_of_filter = 1
 
@@ -31,8 +30,12 @@ def read_data(file_name):
     classes = []
     with open(file_name) as wt:
         for line in wt.readlines():
-            classes.append(int(line.rstrip().split(',')[-1]))
-            data.append([(float(i)) for i in line.rstrip().split(',')[:-1]])
+            if ',' in line:
+                classes.append(str(line.rstrip().split(',')[-1]))
+                data.append([(int(i)) for i in line.rstrip().split(',')[2:-1]])
+            else:
+                classes.append(str(line.rstrip().split(' ')[-1]))
+                data.append([(int(i)) for i in line.rstrip().split(' ')[:-1]])
 
     return normalise_data(data), classes
 
@@ -57,7 +60,7 @@ def normalise_data(data):
 
     return normalised_data
 
-items, classifiers = read_data("../data/sonar/sonar.data")
+items, classifiers = read_data("../data/vehicle/vehicle.dat")
 dataF_items = pd.DataFrame(items)
 
 
@@ -66,31 +69,18 @@ def getIndivByFeatures(individual):
     return [[row[i] for i in range(len(items[0])) if i in list_indiv] for row in items]
 
 
-def filterGA(individual):
-    X = getIndivByFeatures(individual)
-    scores = mutual_info_classif(X, classifiers, discrete_features=False)
-    return sum(scores)
-
-
 """ Fitness / Evaluation """
 def fitnessFunction(individual):
     if len(individual) == 0:
         return 0,
 
-    if type_of_filter == 1:
-        return wrapperFilterFunction(individual),
-    else:
-        return filterGA(individual),
-
-
-def wrapperFilterFunction(individual):
     # Creating KNN Model
     X = getIndivByFeatures(individual)
     neigh = KNeighborsClassifier(n_neighbors=5)
     neigh.fit(X, classifiers)
 
     # Testing against the Model
-    return (classifiers == neigh.predict(X)).sum() / len(items)
+    return (classifiers == neigh.predict(X)).sum() / len(items), len(individual)
 
 
 """ Crossover """
@@ -137,20 +127,22 @@ def setupToolbox():
     return toolbox
 
 
-def plotConvergence(data):
-    averages = []
+def plotConvergence(data, dataset, run):
+    # Format data for plotting
+    x = []
+    y = []
+    xy = []
+    for indiv in data:
+        y.append(len(indiv)/len(items[0]))
+        x.append(1-runTests(indiv))
+        xy.append()
 
-    # Average the data
-    for j in range(len(data[0])):
-        point = 0
-        for i in range(len(data)):
-            point += data[i][j]
-        averages.append((point/5))
-
-    plt.plot(averages)
-    plt.xlabel('Generation')
-    plt.ylabel('Highest Fitness in Population')
-    plt.title('Convergence for Sonar (5 Runs)')
+    hv = hypervolume(np.column_stack((x,y)))
+    # Plotting data
+    plt.scatter(x, y)
+    plt.xlabel('Classification Error')
+    plt.ylabel('Ratio of Features Selected')
+    plt.title(dataset + ' - Run '+str(run)+" - HV = "+str(hv))
     plt.show()
 
 
@@ -160,44 +152,29 @@ def main():
     hof = tools.ParetoFront()
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", numpy.mean, axis=0)
-    stats.register("std", numpy.std, axis=0)
-    stats.register("min", numpy.min, axis=0)
-    stats.register("max", numpy.max, axis=0)
+    stats.register("avg", np.mean, axis=0)
+    stats.register("std", np.std, axis=0)
+    stats.register("min", np.min, axis=0)
+    stats.register("max", np.max, axis=0)
 
     pop, log = algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof)
 
-    best = []
-    for record in log:
-        best.append(record["max"][0])
-
-    return pop, stats, hof, best
+    return pop, stats, hof
 
 if __name__ == "__main__":
-    # Wrapper
-    runs = []
-    for i in range(5):
+    # Vehicle
+    for i in range(3):
         random.seed(i)
-        start_time = time.time()
-        pop, stats, hof, best = main()
-        runs.append(best)
-        print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
-        print("--- %s seconds ---" % (time.time() - start_time))
-        print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
+        pop, stats, hof = main()
+        plotConvergence(hof.items, "Vehicle", i)
 
-    plotConvergence(runs)
-
-    # Filter
-    type_of_filter = 2
-    runs = []
-    for i in range(5):
+    # Clean
+    items, classifiers = read_data("../data/musk/clean1.data")
+    dataF_items = pd.DataFrame(items)
+    for i in range(3):
         random.seed(i)
-        start_time = time.time()
-        pop, stats, hof, best = main()
-        runs.append(best)
-        print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
-        print("--- %s seconds ---" % (time.time() - start_time))
-        print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
+        pop, stats, hof = main()
+        plotConvergence(hof.items, "Clean1", i)
 
-    plotConvergence(runs)
+
 
