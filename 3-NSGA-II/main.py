@@ -11,11 +11,10 @@ from deap import base
 from deap import creator
 from deap import tools
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
 from deap.benchmarks.tools import hypervolume
 
 # GA Variables
-NGEN = 10
+NGEN = 150
 ELITISM_POP = 30
 CHILDREN = 100
 CXPB = 0.7
@@ -72,15 +71,16 @@ def getIndivByFeatures(individual):
 """ Fitness / Evaluation """
 def fitnessFunction(individual):
     if len(individual) == 0:
-        return 0,
+        return 1, 100
 
     # Creating KNN Model
     X = getIndivByFeatures(individual)
     neigh = KNeighborsClassifier(n_neighbors=5)
     neigh.fit(X, classifiers)
+    class_error = 1.0-neigh.score(X, classifiers)
 
     # Testing against the Model
-    return (classifiers == neigh.predict(X)).sum() / len(items), len(individual)
+    return class_error, len(individual)
 
 
 """ Crossover """
@@ -101,15 +101,8 @@ def setMutation(individual):
     return individual,
 
 
-def runTests(individual):
-    X = getIndivByFeatures(individual)
-    nb = GaussianNB().fit(X, classifiers)
-    predictedModel = nb.predict(X)
-    return (classifiers == predictedModel).sum() / len(X)
-
-
 def setupToolbox():
-    creator.create("Fitness", base.Fitness, weights=(1.0, -1.0))
+    creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0))
     creator.create("Individual", set, fitness=creator.Fitness)
 
     toolbox = base.Toolbox()
@@ -131,13 +124,18 @@ def plotConvergence(data, dataset, run):
     # Format data for plotting
     x = []
     y = []
-    xy = []
+    count = 0
+    print("Dataset = "+dataset+", Run = "+str(run))
+    print("Individual,ClassificationError,Ratio of Features")
     for indiv in data:
-        y.append(len(indiv)/len(items[0]))
-        x.append(1-runTests(indiv))
-        xy.append()
+        y.append(indiv.fitness.values[1]/len(items[0]))
+        x.append(indiv.fitness.values[0])
+        print(str(count)+","+str(indiv.fitness.values[0])+","+str(indiv.fitness.values[1]/len(items[0])))
+        count += 1
 
-    hv = hypervolume(np.column_stack((x,y)))
+    hv = hypervolume(data)
+    print("Hypervolume = "+str(hv))
+
     # Plotting data
     plt.scatter(x, y)
     plt.xlabel('Classification Error')
@@ -157,7 +155,7 @@ def main():
     stats.register("min", np.min, axis=0)
     stats.register("max", np.max, axis=0)
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof)
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof, verbose=False)
 
     return pop, stats, hof
 
