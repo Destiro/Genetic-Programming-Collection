@@ -78,6 +78,7 @@ def fitnessFunction(individual):
     neigh = KNeighborsClassifier(n_neighbors=5)
     neigh.fit(X, classifiers)
     class_error = 1.0-neigh.score(X, classifiers)
+    print("class error: "+str(class_error))
 
     # Testing against the Model
     return class_error, len(individual)
