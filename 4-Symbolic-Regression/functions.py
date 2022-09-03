@@ -41,3 +41,7 @@ def abs(left):
 
 def neg(left):
     return operator.neg(left)
+
+
+def pow(left):
+    return left*left

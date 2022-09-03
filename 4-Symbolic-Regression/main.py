@@ -10,15 +10,6 @@ import random
 from deap import algorithms, base, creator, tools, gp
 
 
-def read_data(file_name):
-    data = []
-
-    with open(file_name) as wt:
-        for line in wt.readlines()[2:]:
-            data.append((float(line.rstrip().split()[0]), float(line.rstrip().split()[-1])))
-
-    return data
-
 
 def addPrimitives():
     primitives = gp.PrimitiveSet("MAIN", 1)
@@ -28,12 +19,18 @@ def addPrimitives():
     primitives.addPrimitive(functions.div, 2)
     primitives.addPrimitive(functions.abs, 1)
     primitives.addPrimitive(functions.neg, 1)
-    primitives.addPrimitive(math.cos, 1)
     primitives.addPrimitive(math.sin, 1)
-    primitives.addPrimitive(math.tan, 1)
-    primitives.addEphemeralConstant("terminals", lambda: random.randint(-20, 20))
+    primitives.addPrimitive(math.cos, 1)
+    primitives.addEphemeralConstant("terminals", lambda: random.randint(-10, 10))
     primitives.renameArguments(ARG0='x')
     return primitives
+
+
+def test_point(point):
+    if point <= 0:
+        return (2*point) + (point*point) + 3
+    else:
+        return 1/point + math.sin(point)
 
 
 def fitness_function(individual, points):
@@ -41,7 +38,7 @@ def fitness_function(individual, points):
     func = toolbox.compile(expr=individual)
 
     # Fitness function = the absolute value of each y-x
-    sqerrors = (operator.abs(x[1]-func(x[0])) for x in points)
+    sqerrors = (operator.abs(func(x) - test_point(x)) for x in points)
     return math.fsum(sqerrors) / len(points),
 
 
@@ -55,7 +52,7 @@ def generate_toolbox():
     tb.register("population", tools.initRepeat, list, tb.individual)
     tb.register("compile", gp.compile, pset=pset)
 
-    tb.register("evaluate", fitness_function, points=read_data("regression.txt"))
+    tb.register("evaluate", fitness_function, points=[x/5. for x in range(-200, 200)])  # every 0.25 from -20 to 20
     tb.register("select", tools.selTournament, tournsize=3)
     tb.register("mate", gp.cxOnePoint)
     tb.register("expr_mut", gp.genFull, min_=0, max_=2)
@@ -71,7 +68,7 @@ toolbox = generate_toolbox()
 
 
 def main():
-    pop = toolbox.population(n=200)
+    pop = toolbox.population(n=1000)
     hof = tools.HallOfFame(1)
 
     stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
@@ -83,12 +80,15 @@ def main():
     mstats.register("max", numpy.max)
 
     #Pop, Toolbox, Cross_prob, mutation_prob, num_generations
-    pop, log = algorithms.eaSimple(pop, toolbox, 0.7, 0.1, 100, stats=mstats,
-                                   halloffame=hof, verbose=True)
+    pop, log = algorithms.eaSimple(pop, toolbox, 0.65, 0.15, 150, stats=mstats,
+                                   halloffame=hof, verbose=False)
     # print log
     return pop, log, hof
 
 
-popx, logx, hofx = main()
-print("Best Tree: ", hofx[0])
-print("Best Fitness: ", hofx[0].fitness.values[0])
+if __name__ == "__main__":
+    for i in range(3):
+        random.seed(i)
+        popx, logx, hofx = main()
+        print(str(i)+": Best Tree: ", hofx[0])
+        print(str(i)+": Best Fitness: ", hofx[0].fitness.values[0])
