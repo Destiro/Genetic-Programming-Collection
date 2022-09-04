@@ -119,9 +119,8 @@ def runTests(individual):
 
 
 def setupToolbox():
-    creator.create("Fitness", base.Fitness, weights=(1.0, -1.0))
+    creator.create("Fitness", base.Fitness, weights=(1.0,))
     creator.create("Individual", set, fitness=creator.Fitness)
-
     toolbox = base.Toolbox()
 
     # Attribute generator
@@ -145,12 +144,12 @@ def plotConvergence(data):
         point = 0
         for i in range(len(data)):
             point += data[i][j]
-        averages.append((point/5))
+        averages.append(point/5)
 
     plt.plot(averages)
     plt.xlabel('Generation')
     plt.ylabel('Highest Fitness in Population')
-    plt.title('Convergence for Sonar (5 Runs)')
+    plt.title('Convergence (5 Runs)')
     plt.show()
 
 
@@ -174,30 +173,37 @@ def main():
     return pop, stats, hof, best
 
 if __name__ == "__main__":
-    # Wrapper
-    runs = []
-    for i in range(5):
-        random.seed(i)
-        start_time = time.time()
-        pop, stats, hof, best = main()
-        runs.append(best)
-        print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
-        print("--- %s seconds ---" % (time.time() - start_time))
-        print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
+    print("Sonar dataset:")
+    for i in range(2):
+        # Wrapper
+        type_of_filter = 1
+        runs = []
+        for i in range(5):
+            random.seed(i)
+            start_time = time.time()
+            pop, stats, hof, best = main()
+            runs.append(best)
+            print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
+            print("--- %s seconds ---" % (time.time() - start_time))
+            print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
 
-    plotConvergence(runs)
+        plotConvergence(runs)
 
-    # Filter
-    type_of_filter = 2
-    runs = []
-    for i in range(5):
-        random.seed(i)
-        start_time = time.time()
-        pop, stats, hof, best = main()
-        runs.append(best)
-        print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
-        print("--- %s seconds ---" % (time.time() - start_time))
-        print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
+        # Filter
+        type_of_filter = 2
+        runs = []
+        for i in range(5):
+            random.seed(i+5)
+            start_time = time.time()
+            pop, stats, hof, best = main()
+            runs.append(best)
+            print("\n==========\n NB Acc:" + str(runTests(hof[0])) + "\n============\n")
+            print("--- %s seconds ---" % (time.time() - start_time))
+            print("\n==========\n HOF:" + str(hof[0]) + "\n============\n")
 
-    plotConvergence(runs)
+        plotConvergence(runs)
+
+        items, classifiers = read_data("../data/wbcd/wbcd.data")
+        dataF_items = pd.DataFrame(items)
+        print("wbcd dataset")
 

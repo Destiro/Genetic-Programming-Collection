@@ -133,7 +133,7 @@ def plotConvergence(data, dataset, run):
         print(str(count)+","+str(indiv.fitness.values[0])+","+str(indiv.fitness.values[1]/len(items[0])))
         count += 1
 
-    hv = hypervolume(data)
+    hv = hypervolume(data) / len(data)
     print("Hypervolume = "+str(hv))
 
     # Plotting data
@@ -155,7 +155,7 @@ def main():
     stats.register("min", np.min, axis=0)
     stats.register("max", np.max, axis=0)
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof, verbose=False)
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, ELITISM_POP, CHILDREN, CXPB, MUTPB, NGEN, stats, halloffame=hof, verbose=True)
 
     return pop, stats, hof
 

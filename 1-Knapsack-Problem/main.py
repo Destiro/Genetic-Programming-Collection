@@ -35,7 +35,7 @@ def read_data(file_name):
     return data, cap
 
 
-items, capacity = read_data("../data/knapsack-data/100_995")
+items, capacity = read_data("../data/knapsack-data/10_269")
 
 
 """ Fitness / Evaluation """
@@ -103,12 +103,12 @@ def plotConvergence(data):
         point = 0
         for i in range(len(data)):
             point += data[i][j]
-        averages.append(1514-(point/5))
+        averages.append(point/5)
 
     plt.plot(averages)
     plt.xlabel('Generation')
     plt.ylabel('Average Value to Optimal (Optimal-Value)')
-    plt.title('Convergence for 100_995 (5 Runs)')
+    plt.title('Convergence (5 Runs)')
     plt.show()
 
 
@@ -132,6 +132,27 @@ def main():
     return pop, stats, hof, best
 
 if __name__ == "__main__":
+    # 10_269
+    runs = []
+
+    for i in range(5):
+        random.seed(i)
+        pop, stats, hof, best = main()
+        runs.append(best)
+    plotConvergence(runs)
+
+    # 23_10000
+    items, capacity = read_data("../data/knapsack-data/23_10000")
+    runs = []
+
+    for i in range(5):
+        random.seed(i)
+        pop, stats, hof, best = main()
+        runs.append(best)
+    plotConvergence(runs)
+
+    # 100_995
+    items, capacity = read_data("../data/knapsack-data/100_995")
     runs = []
 
     for i in range(5):
